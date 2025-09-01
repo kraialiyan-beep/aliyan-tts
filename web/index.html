@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aliyan TTS</title>
+  <style>
+    body{font-family:system-ui,Arial;padding:24px;max-width:900px;margin:auto}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    label{font-weight:600}
+    textarea{width:100%;height:220px}
+    input,select,button{padding:8px 10px}
+    .muted{color:#666;font-size:14px}
+    .card{border:1px solid #ddd;border-radius:12px;padding:16px;margin:12px 0}
+  </style>
+</head>
+<body>
+  <h1>Aliyan TTS</h1>
+  <p class="muted">Paste your script → pick a voice → Generate → download MP3 (length equals narration length).</p>
+
+  <div class="card">
+    <label>Script</label>
+    <textarea id="text" placeholder="Paste your full script here..."></textarea>
+
+    <div class="row">
+      <label for="voice">Voice</label>
+      <select id="voice"></select>
+
+      <label for="rate">Rate</label>
+      <input id="rate" value="+0%" />
+
+      <label for="pitch">Pitch</label>
+      <input id="pitch" value="+0Hz" />
+
+      <button id="go">Generate Audio</button>
+    </div>
+
+    <p id="status" class="muted"></p>
+    <p id="link"></p>
+  </div>
+
+  <script>
+    async function loadVoices(){
+      const res = await fetch('/api/voices');
+      const v = await res.json();
+      const sel = document.getElementById('voice');
+      v.forEach(name=>{
+        const o=document.createElement('option');
+        o.value=name;o.textContent=name;sel.appendChild(o);
+      });
+    }
+    loadVoices();
+
+    document.getElementById('go').onclick = async () => {
+      const text = document.getElementById('text').value.trim();
+      const voice = document.getElementById('voice').value;
+      const rate  = document.getElementById('rate').value;
+      const pitch = document.getElementById('pitch').value;
+
+      if(!text){ alert('Paste your script first.'); return; }
+      document.getElementById('status').textContent = 'Generating... this can take a few minutes for long files.';
+      document.getElementById('link').innerHTML = '';
+
+      const fd = new FormData();
+      fd.append('text', text);
+      fd.append('voice', voice);
+      fd.append('rate', rate);
+      fd.append('pitch', pitch);
+
+      const r = await fetch('/api/synthesize', { method:'POST', body: fd });
+      const j = await r.json();
+      if(j.download){
+        document.getElementById('status').textContent = `Done. Length: ~${(j.seconds/3600).toFixed(2)} hours`;
+        document.getElementById('link').innerHTML = `<a href="${j.download}">Download MP3</a>`;
+      } else {
+        document.getElementById('status').textContent = 'Error: ' + (j.error || 'Unknown');
+      }
+    };
+  </script>
+</body>
+</html>
